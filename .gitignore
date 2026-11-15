@@ -20,3 +20,6 @@ examples/html/
 # geometry
 *.stl
 *.STL
+
+# editor
+.vscode/

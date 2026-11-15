@@ -91,7 +91,7 @@ title('Largest deflection, 5x');
 function s = pendulum(file, mat, modes, damping)
 % Strip hinged about y at x = 0, with the tip deflection in the strip frame.
 s = fmbd.System(Gravity = [0 0 -9.81]);
-s.add(fmbd.Body.elastic(file, mat, Size = 0.004, Order = 2, Name = 'strip', Modes = modes, ...
+s.add(fmbd.Body.elastic(file, mat, Size = 0.4, Order = 2, Name = 'strip', Modes = modes, ...
                         Damping = damping));
 s.couple('strip', @(X) X(:,1) < 1e-6, Name = 'root', Point = [0 0 0]);
 s.couple('strip', @(X) X(:,1) > 0.4 - 1e-6, Name = 'tip');

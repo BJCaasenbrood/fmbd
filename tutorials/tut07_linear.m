@@ -22,7 +22,7 @@ fmbd.boxSTL(fullfile(out, 'forearm.stl'), [0.3 -0.015 -0.005], [0.6 0.015 0.005]
 steel = fmbd.material(210e9, 0.30, 7850);  alu = fmbd.material(70e9, 0.33, 2700);
 upper   = fmbd.Body(fullfile(out, 'upper.stl'), steel, Size = 0.02, Rigid = true, Name = 'upper');
 forearm = fmbd.Body.elastic(fullfile(out, 'forearm.stl'), alu, Size = 0.006, Modes = 6, ...
-                            Damping = [0 2e-5], Name = 'forearm');
+                            Damping = [0 1e-8], Name = 'forearm');
 arm = @(elbow) scara(upper, forearm, elbow);
 
 %% 2. Equilibrium under gravity
@@ -66,7 +66,7 @@ fprintf('%d states; inputs %s; outputs %s\n', size(sys.A, 1), strjoin(sys.InputN
 fprintf('D (tip acceleration per unit torque): %s\n', mat2str(sys.D(end,:), 3));
 % frequency response tau2 -> elbow angle and tip acceleration, computed
 % directly from A, B, C, D
-fHz = logspace(0, 3.3, 600);  H = zeros(numel(sys.OutputName), numel(fHz));
+fHz = logspace(0, 4, 3e3);  H = zeros(numel(sys.OutputName), numel(fHz));
 for k = 1:numel(fHz)
     Hk = sys.C*((2i*pi*fHz(k)*eye(size(sys.A)) - sys.A)\sys.B) + sys.D;  H(:,k) = Hk(:,2);
 end
@@ -85,7 +85,7 @@ xlabel('frequency (Hz)');  ylabel('|a_{tip}/tau2| (m/s^2/N m)');
 % A PD controller on both joints, closed around the linear model, predicts
 % the response to a small elbow step. The nonlinear simulation with the
 % same controller in the loop agrees, as long as the motion stays small.
-kp = [16; 1.5];
+kp = [160; 3.5];
 kd = [1.8; 0.15];
 r = [0; 0.02]; % step of 0.02 rad on the elbow
 iy = cellfun(@(n) find(strcmp(sys.OutputName, n)), {'th1', 'th2', 'w1', 'w2'});
