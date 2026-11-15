@@ -18,7 +18,7 @@ classdef System < handle
 %   grounded. Bodies are defined in a relaxed reference; elastic bodies start
 %   undeformed.
 %
-%   Theory and notation: docs/theory.md.
+%   Theory and notation: paper.md.
 
 properties
     Gravity (1,3) double = [0 0 0] % gravity vector, e.g. [0 0 -9.81]

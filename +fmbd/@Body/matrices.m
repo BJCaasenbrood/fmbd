@@ -1,7 +1,7 @@
 function [K, M] = matrices(b, opts)
 %MATRICES Stiffness and mass matrices of the mesh.
 %   [K, M] = b.matrices() with 3 dofs per node, [ux1 uy1 uz1 ux2 ...], see
-%   Eq. (2.1) of docs/theory.md. Options: MassOnly, Chunk.
+%   Eq. (2.1) of paper.md. Options: MassOnly, Chunk.
     arguments
         b
         opts.Chunk (1,1) double = 2e4 % elements per vectorised block

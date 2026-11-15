@@ -1,7 +1,7 @@
 function B = reduceGroup(bodies, cpl, ties, sup, loads, nModes, name)
 % Reduce an elastic group (bodies tied together) to Craig-Bampton modes in a
 % floating frame at its first coupling, and compute the inertia invariants.
-% See Sections 3.1 and 3.3 of docs/theory.md.
+% See Sections 3.1 and 3.3 of paper.md.
 X = cell2mat(cellfun(@(b) b.X, bodies(:), 'UniformOutput', false));  nn = size(X, 1);
 K = cell(1, numel(bodies));
 M = K;
