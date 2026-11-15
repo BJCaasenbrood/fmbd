@@ -11,13 +11,16 @@ if isempty(exe)
     app = '/Applications/Gmsh.app/Contents/MacOS/gmsh';
     if ismac && isfile(app), exe = app; end
 end
+
 cmd = sprintf('"%s" %s', exe, args);
 if isunix && ~ismac % Linux: hide MATLAB's own (older) libstdc++ from Gmsh
     lib = strsplit(getenv('LD_LIBRARY_PATH'), ':');
     lib = lib(~startsWith(lib, matlabroot));
     cmd = sprintf('LD_LIBRARY_PATH="%s" %s', strjoin(lib, ':'), cmd);
 end
-[status, out] = system(cmd); % generate the system command and run it
+
+% generate system command to run Gmsh
+[status, out] = system(cmd); 
 out = regexprep(out, '\x1b\[[0-9;]*m', ''); % strip colour codes
 if nargout < 1
     if status ~= 0
@@ -26,4 +29,5 @@ if nargout < 1
     end
     if ~isempty(strtrim(out)), disp(strtrim(out)); end
 end
+
 end

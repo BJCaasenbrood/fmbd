@@ -6,9 +6,13 @@ function name = add(s, b)
         s
         b (1,1) fmbd.Body
     end
+    
     assert(~any(cellfun(@(c) c == b, s.Bodies)), 'fmbd:add', '%s is already added.', b.Name);
     assert(~ismember(b.Name, names(s)), 'fmbd:add', 'The name %s is already used.', b.Name);
-    s.Bodies{end+1} = b;  name = b.Name;
+    
+    
+    s.Bodies{end+1} = b;  % add the body to the system
+    name = b.Name;        % return the name of the added body
     if b.Rigid
         s.Refs(end+1) = struct('Name', b.Name, 'body', numel(s.Bodies), 'nodes', [], 'x', b.Ref);
     end

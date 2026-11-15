@@ -3,6 +3,8 @@ function setMass(b, m, opts)
 %   b.setMass(m) keeps the inertia distribution. Options: CenterOfMass,
 %   Inertia (3x3, or principal moments), InertiaPoint, Axes, LengthScale
 %   (e.g. 1e-3 for mm and kg mm^2).
+
+
     arguments
         b
         m (1,1) double {mustBePositive}
@@ -15,7 +17,11 @@ function setMass(b, m, opts)
     assert(b.Rigid, 'fmbd:setMass', '%s: setMass is for rigid bodies only.', b.Name);
     p = struct();  [p.m, p.c, p.J] = b.massProperties();
     s = opts.LengthScale;  c = p.c;
+
+    % scale the mass properties
     if ~isempty(opts.CenterOfMass), c = s*opts.CenterOfMass(:)'; end
+
+    % scale the inertia tensor about the centre of mass
     if isempty(opts.Inertia)
         J = p.J*(m/p.m);
     else
@@ -27,6 +33,7 @@ function setMass(b, m, opts)
             J = J - m*(dot(r, r)*eye(3) - r'*r);
         end
     end
+
     assert(norm(J - J', 'fro') <= 1e-6*norm(J, 'fro'), 'fmbd:setMass', ...
         '%s: the inertia tensor must be symmetric.', b.Name);
     J = (J + J')/2;  Jp = sort(eig(J));
@@ -34,5 +41,7 @@ function setMass(b, m, opts)
         ['%s: invalid inertia (principal moments %s): they must be positive and ' ...
          'satisfy J3 <= J1 + J2. Check that it is about the centre of mass.'], ...
         b.Name, mat2str(Jp', 4));
+
+    % set the mass properties        
     b.MassProps = struct('m', m, 'c', c, 'J', J);
 end

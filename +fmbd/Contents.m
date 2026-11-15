@@ -1,4 +1,4 @@
-% FMBD  Flexible multibody dynamics for STL assemblies
+% FMBD  Flexible multibody dynamics for (STL) assemblies
 % Version 0.1 14-Nov-2026
 %
 % Model
@@ -22,4 +22,3 @@
 %   s.output('th', 'hinge');
 %   [t, y, x] = s.simulate([0 2]);  s.animate(t, x);
 %
-% Copyright (c) 2026 B.J. Caasenbrood. MIT License, see LICENSE.

@@ -56,7 +56,6 @@ for k = 1:numel(fHz)
 end
 figure('Color', 'w');
 loglog(fHz, abs(H), 'LineWidth',2);
-grid on
-xlabel('frequency (Hz)');
-ylabel('|u_z/F_z| (m/N)');
+xlabel('frequency (Hz)'); ylabel('|u_z/F_z| (m/N)');
 legend('all modes', '6 modes + static correction');
+grid on; box on;

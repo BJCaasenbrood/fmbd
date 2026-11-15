@@ -9,7 +9,13 @@ function b = pointMass(m, c, J, opts)
         opts.Name (1,:) char = 'mass'
         opts.RefPoint double = []
     end
-    if isempty(opts.RefPoint), opts.RefPoint = c; end
+
+    % create a rigid body with no mesh (point mass)
+    if isempty(opts.RefPoint) 
+        opts.RefPoint = c;
+    end
+
+    % create a rigid body with no mesh (point mass)
     b = fmbd.Body(struct('X', zeros(0, 3), 'T', zeros(0, 4)), struct('rho', 0), ...
                  Name = opts.Name, Rigid = true, RefPoint = opts.RefPoint);
     b.MassProps = struct('m', m, 'c', c, 'J', (J + J')/2);

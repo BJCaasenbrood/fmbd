@@ -3,6 +3,7 @@ function fix(s, id, varargin)
 %   s.fix(ref, dirs)        hold a reference point (dirs 1:6, world axes)
 %   s.fix(joint, dirs)      hold joint coordinates at their Position
 %   s.fix(body, sel, dirs)  clamp nodes of an elastic body (dirs 1:3)
+
     if numel(varargin) >= 2 || (isscalar(varargin) && isa(varargin{1}, 'function_handle'))
         sel = varargin{1};  dirs = 1:3;  if numel(varargin) >= 2, dirs = varargin{2}; end
         [kind, k] = lookup(s, id, false);
@@ -18,5 +19,6 @@ function fix(s, id, varargin)
             'point; clamp nodes of an elastic body with s.fix(body, sel).'], string(id));
         s.Fixes(end+1) = struct('kind', kind, 'idx', k, 'dirs', dirs, 'nodes', []);
     end
+
     s.built = false;
 end

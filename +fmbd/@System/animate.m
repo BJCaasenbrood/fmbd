@@ -10,17 +10,26 @@ function animate(s, t, x, opts)
         opts.Scale (1,1) double = 1
         opts.Title (1,:) char = ''
     end
-    build(s);
-    nb = numel(s.Bodies);
+
+    build(s); % ensure the system is built
+    nb = numel(s.Bodies); % number of bodies
+    % helper function to get the vertices of each body at time step k
     V = @(k) arrayfun(@(i) vertices(s, i, x, k, opts.Scale), 1:nb, 'UniformOutput', false);
+    
+    % plot the initial configuration
     cla;  h = s.plot(x, 1, Scale = opts.Scale);
     X = reshape(permute(x.r, [1 3 2]), 3, [])'; % all frame positions
     span = max([arrayfun(@(B) max([vecnorm(B.Xl, 2, 2); 0]), s.units), 1e-3]);
     axis(reshape([min(X, [], 1) - span; max(X, [], 1) + span], 1, []));
+
+    % play the animation
     playback(h, (t(end) - t(1))/opts.Rate, @(c) frame(c));
+    
+    % helper function to update the vertices and title
     function frame(c)
         k = find(t <= t(1) + opts.Rate*c, 1, 'last');
         setVertices(h, V(k));
         title(sprintf('%s  t = %.3f s', opts.Title, t(k)));
     end
+
 end

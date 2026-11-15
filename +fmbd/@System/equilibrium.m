@@ -12,7 +12,7 @@ function [x, info] = equilibrium(s, opts)
         opts.Tol (1,1) double {mustBePositive} = 1e-10
         opts.MaxIter (1,1) double = 100
     end
-    build(s);
+    build(s); % ensure that the system is built
     [q, ~] = startState(s, opts.Initial);
     n = s.nv;
     nu = zeros(n, 1);
@@ -23,38 +23,44 @@ function [x, info] = equilibrium(s, opts)
     r = [F - G'*lambda; g]; % force balance, constraints
     err = @(r, F) [norm(r(1:n))/max(norm(F), 1), max(abs([r(n+1:end); 0]))/L];
     merit = @(e) e(1) + e(2);
-    best = inf;
-    stall = 0;
-    conv = false;
-    Kt = [];
-    age = 0;
+
+    % solve for the equilibrium with a modified Newton method
+    best = inf; stall = 0; conv = false;  Kt = []; age = 0;
     for it = 1:opts.MaxIter
-        e = err(r, F);
-        if all(e < opts.Tol), conv = true;  break, end
+        
+        e = err(r, F); % compute the force and constraint residuals
+        if all(e < opts.Tol), conv = true;  break, end % converged!
         m = max(e/opts.Tol); % progress measure
+
         if m < 0.5*best
-            best = m;  stall = 0;
+            best = m;  
+            stall = 0;
         elseif age > 1
             Kt = []; % slow with an old tangent: refresh it first
         else
             stall = stall + 1; % slow even with a fresh tangent
         end
+
         if stall >= 3 % plateau: round-off floor, or no equilibrium
             conv = all(e < 1e3*opts.Tol);
             break
         end
+
+        % (re)-compute the tangent stiffness matrix if needed (improves convergence)
         if isempty(Kt) || age >= 10 % modified Newton: reuse the tangent
             Kt = frameStiffness(s, q, u, lambda);  age = 0;
         end
+
         % Newton step split by the constraints, Eq. (8.2): correct them, then
         % balance the forces in the directions they allow (null space of G)
         r1 = r(1:n);
         dc = -lsqminnorm(G, g);
-        N = null(G);  if isempty(G), N = eye(n); end
+        N  = null(G);  if isempty(G), N = eye(n); end
         z  = lsqminnorm(N'*Kt*N, N'*(r1 - Kt*dc)); % free mechanisms stay
         dq = dc + N*z;
         dLambda = lsqminnorm(G', r1 - Kt*dq);
         a = 1;  m0 = merit(e);
+
         for ls = 1:6 % backtracking line search
             qNew = retract(s, q, a*dq);  lambdaNew = lambda + a*dLambda;
             FNew = forces(s, qNew, nu, u, false);  [gNew, GNew] = constraints(s, qNew);
@@ -62,15 +68,20 @@ function [x, info] = equilibrium(s, opts)
             if merit(err(rNew, FNew)) < m0 || ls == 6, break, end
             a = a/2;
         end
+
         [q, lambda, F, G, g, r] = deal(qNew, lambdaNew, FNew, GNew, gNew, rNew);
-        age = age + 1;
+        age = age + 1; % count iterations since the last tangent update
     end
-    e = err(r, F);
+    e = err(r, F); % compute the force and constraint residuals
     info = struct('converged', conv, 'iterations', it, 'force', e(1), 'constraint', e(2)*L);
+    
+    % no equilibrium found warning
     if ~conv
         warning('fmbd:equilibrium', ['No equilibrium found after %d iterations (force residual ' ...
             '%.1e, constraint residual %.1e); a free coordinate may carry a net force.'], ...
             it, e(1), e(2)*L);
     end
+
+    % return the state at equilibrium
     x = state(s, q, nu, u);
 end

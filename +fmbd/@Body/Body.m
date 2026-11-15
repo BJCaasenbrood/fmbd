@@ -12,8 +12,8 @@ classdef Body < handle
 %   (D = alpha*M + beta*K).
 
 properties
-    Name (1,:) char
-    Mat  struct
+    Name (1,:) char % name of the body
+    Mat  struct % material struct with D and rho
     X    (:,3) double % nodes
     T    double % tetrahedra (ne x 4 or ne x 10)
     F    double % outward boundary faces (nf x 3 or nf x 6)
@@ -46,7 +46,8 @@ methods
             opts.Modes (1,1) double {mustBeInteger, mustBeNonnegative} = 10
         end
         if isstruct(src)
-            X = src.X;  T = src.T;
+            X = src.X;
+            T = src.T;
         else
             [~, name, ext] = fileparts(src);
             if isempty(opts.Name), opts.Name = name; end
@@ -63,6 +64,7 @@ methods
         assert(~opts.Rigid || ~any(opts.Damping), 'fmbd:Body', ['%s: Damping is ' ...
             'material damping of an elastic body; damp rigid bodies with joint ' ...
             'dampers.'], opts.Name);
+
         b.Name = opts.Name;
         b.Mat  = mat;
         b.X    = opts.Scale*X;
@@ -94,4 +96,5 @@ methods (Static)
     b = rigid(file, rho, opts)
     b = pointMass(m, c, J, opts)
 end
+
 end

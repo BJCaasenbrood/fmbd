@@ -14,7 +14,7 @@ addpath(fileparts(fileparts(mfilename('fullpath'))));
 out = fullfile(tempdir, 'fmbdFlexure');  if ~isfolder(out), mkdir(out); end
 
 % geometry (mm)
-L = 40;  b = 10;  t = 0.1;  h = 20; % leaf length, width, thickness; half spacing
+L = 20;  b = 10;  t = 0.5;  h = 20; % leaf length, width, thickness; half spacing
 fmbd.boxSTL(fullfile(out, 'base.stl'),    [-h-5 -b/2 -10],   [h+5 b/2 0]);
 fmbd.boxSTL(fullfile(out, 'shuttle.stl'), [-h-5 -b/2 L],     [h+5 b/2 L+10]);
 fmbd.boxSTL(fullfile(out, 'leaf1.stl'),   [-h-t/2 -b/2 0],   [-h+t/2 b/2 L]);
@@ -52,6 +52,6 @@ fprintf('f1: %.1f Hz, beam theory %.1f - %.1f Hz\n', f(1), sqrt(kx/m)/(2*pi));
 fprintf('support stiffness ratio kz/kx = %.0f, ky/kx = %.0f\n', Ks(3,3)/Ks(1,1), Ks(2,2)/Ks(1,1));
 figure('Color', 'w');
 for k = 1:4
-    subplot(1, 4, k);  s.plotMode([], V(:,k), Amplitude = 0.005);
-    title(sprintf('Mode %d: %.0f Hz', k, f(k)));  axis off
+    subplot(2, 2, k);  s.plotMode([], V(:,k), Amplitude = 0.005);
+    title(sprintf('Mode %d: %.0f Hz', k, f(k)));  axis off, axis tight;
 end

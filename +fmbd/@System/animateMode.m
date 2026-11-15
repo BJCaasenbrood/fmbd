@@ -13,17 +13,26 @@ function animateMode(s, x, v, opts)
         opts.Duration (1,1) double {mustBePositive} = 3
         opts.Title = []
     end
-    [x, a, V0] = modeScale(s, x, v, opts.Amplitude);  nb = numel(s.Bodies);
-    cla;
-    h = drawBodies(s.Bodies, V0, num2cell(lines(nb), 2)');
+
+    % scale the mode shape to the desired amplitude
+    [x, a, V0] = modeScale(s, x, v, opts.Amplitude);  
+    nb = numel(s.Bodies); % number of bodies
+    
+    % plot the initial configuration
+    cla; h = drawBodies(s.Bodies, V0, num2cell(lines(nb), 2)');
     axis manual
     ttl = char(opts.Title);
+
+    % play the animation
     if ~isempty(opts.Frequency)
         ft = sprintf('%.1f Hz (%.0fx slow motion)', opts.Frequency, opts.Frequency/opts.Rate);
         if opts.Frequency <= 0, ft = 'rigid-body / mechanism mode'; end
         if isempty(ttl), ttl = ft; else, ttl = [ttl ': ' ft]; end
     end
+
     if ~isempty(ttl), title(ttl); end
+
+    % helper function to update the vertices    
     playback(h, opts.Duration, @(c) setVertices(h, arrayfun(@(i) vertices(s, i, ...
         s.perturb(x, a*sin(2*pi*opts.Rate*c)*v), 1, 1), 1:nb, 'UniformOutput', false)));
 end
