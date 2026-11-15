@@ -19,7 +19,7 @@ function lin = linearize(s, x, opts)
     if isempty(u0) && ~isempty(x) && isfield(x, 'u') && ~isempty(x.u), u0 = x.u(:, end); end
     u0 = inputVector(s, u0);
     [~, G] = constraints(s, q);
-    T = null(G);  if isempty(G), T = eye(n); end
+    T = null(G);  if isempty(G), T = eye(n); end % dq = T*z, Eq. (9.2)
     [F, ~, ~, Mq] = forces(s, q, nu, u0);  nc = size(G, 1);
     sol = lsqminnorm([Mq, G'; G, zeros(nc)], [F; -convective(s, q, nu)]); % constraint forces
     lam = sol(n+1:end); % (dynamic, so also away from equilibrium)
@@ -27,7 +27,7 @@ function lin = linearize(s, x, opts)
         warning('fmbd:linearize', ['The state is not an equilibrium (e.g. a preloaded spring ' ...
             'without a holding input); use x = s.equilibrium(Input = u0).']);
     end
-    Kq = stiffness(s, q, u0, lam, nu);
+    Kq = stiffness(s, q, u0, lam, nu); % Eq. (9.1)
     Cq = zeros(n);  e = 1; % exact: the forces are quadratic in nu
     for j = 1:n
         d = zeros(n, 1);  d(j) = e;

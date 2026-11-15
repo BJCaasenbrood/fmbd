@@ -1,5 +1,5 @@
 function R = expso3(p)
-%EXPSO3 Rotation matrix exp(hat(p)) of a rotation vector p (Rodrigues).
+%EXPSO3 Rotation matrix exp(hat(p)) of a rotation vector p, Eq. (1.3).
 th = norm(p);  P = hat(p);
 if th < 1e-8 % ensure accuracy for small angles
     R = eye(3) + P + P*P/2;

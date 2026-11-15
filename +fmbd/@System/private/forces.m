@@ -1,5 +1,6 @@
 function [F, Kt, Ct, Mq] = forces(s, q, nu, u, tangents)
-% Generalised forces, tangents Kt and Ct (if tangents) and mass matrix.
+% Generalised forces F (Eqs. 2.2, 4.5, 6.1), the tangents Kt = -dF/dq and
+% Ct = -dF/dnu if tangents (Eq. 7.4), and the mass matrix.
     if nargin < 5, tangents = true; end
     n = s.nv;
     F = zeros(n, 1);
@@ -42,7 +43,7 @@ function [F, Kt, Ct, Mq] = forces(s, q, nu, u, tangents)
         Jc = Jc(f, :);
         k = J.k(f);
         d = J.c(f);
-        F = F - Jc'*(k.*c + d.*(Jc*nu));
+        F = F - Jc'*(k.*c + d.*(Jc*nu)); % Eq. (6.1)
         Kt = Kt + Jc'*(k.*Jc);  Ct = Ct + Jc'*(d.*Jc);
     end
     for T = s.transData(arrayfun(@(T) ~isempty(T.k), s.transData))

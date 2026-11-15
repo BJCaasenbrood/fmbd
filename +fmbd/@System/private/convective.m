@@ -1,5 +1,5 @@
 function gd = convective(s, q, nu)
-% dG/dt * nu, by central differences along the motion.
+% dG/dt*nu, for consistent accelerations; central differences along nu.
     if norm(nu) == 0, [g, ~] = constraints(s, q);  gd = zeros(size(g)); return, end
     e = 1e-6/norm(nu);
     [~, Gp] = constraints(s, retract(s, q, e*nu));

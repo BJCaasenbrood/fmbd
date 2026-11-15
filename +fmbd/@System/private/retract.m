@@ -1,6 +1,6 @@
 function q = retract(s, q, dq)
-% q o exp(dq): positions add (world), rotations update on the right
-% (body), modal coordinates add.
+% Increment q by dq: positions add (world), rotations update on the right
+% (unit frame), modal coordinates add. Eq. (1.2).
     for i = 1:numel(s.units)
         c = s.units(i).cols;
         q.r(:, i) = q.r(:, i) + dq(c(1:3));

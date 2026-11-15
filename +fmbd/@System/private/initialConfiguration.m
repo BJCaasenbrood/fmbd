@@ -1,6 +1,6 @@
 function q = initialConfiguration(s, q)
-% Solve the constraints and joint positions; other joint coordinates stay
-% as close to zero as possible.
+% Solve the constraints and joint positions; the other joint coordinates
+% stay as close to zero as possible. Eq. (8.1).
     tgt = zeros(0, 3);  soft = zeros(0, 2); % [joint, coordinate, value], [joint, coordinate]
     for j = 1:numel(s.Joints)
         v = s.Joints(j).position;  nf = nnz(s.Joints(j).free);

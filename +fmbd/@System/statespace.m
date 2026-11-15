@@ -42,7 +42,7 @@ function sys = statespace(s, x, opts)
     V = V./sqrt(dot(V, M*V));  nr = size(V, 2);
     zeta = opts.Damping(:);  if isscalar(zeta), zeta = zeta*ones(nr, 1); end
     w = sqrt(max(lam, 0));
-    Z = diag(2*zeta.*w) + V'*lin.C*V;  Om2 = V'*lin.K*V;
+    Z = diag(2*zeta.*w) + V'*lin.C*V;  Om2 = V'*lin.K*V; % Eq. (9.3)
     A = [zeros(nr), eye(nr); -Om2, -Z];
     Bs = [zeros(nr, size(B, 2)); V'*B];
     Ca = lin.Ca*V;  Bm = V'*B; % accelerations: eta'' = -Om2 eta - Z eta' + Bm u

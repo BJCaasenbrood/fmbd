@@ -1,5 +1,5 @@
 function [g, G] = constraints(s, q, reduce)
-% Constraint values g(q) = 0 and their Jacobian G (rows s.keepRows).
+% Constraints g(q) = 0 and their Jacobian G (Section 5), rows s.keepRows.
     if nargin < 3, reduce = true; end
     g = zeros(0, 1);  G = zeros(0, s.nv);
     for j = 1:numel(s.jointFrames)

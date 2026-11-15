@@ -1,13 +1,9 @@
 function [K, M] = matrices(b, opts)
 %MATRICES Stiffness and mass matrices of the mesh.
-%   [K, M] = b.matrices() with 3 dofs per node, [ux1 uy1 uz1 ux2 ...].
-%   Options: Lumped (HRZ), MassOnly, Chunk.
-%
-%   HRZ lumping: Hinton, E., Rock, T. and Zienkiewicz, O. C., Earthquake
-%   Eng. Struct. Dyn. 4(3), 1976, 245-249.
+%   [K, M] = b.matrices() with 3 dofs per node, [ux1 uy1 uz1 ux2 ...], see
+%   Eq. (2.1) of docs/theory.md. Options: MassOnly, Chunk.
     arguments
         b
-        opts.Lumped (1,1) logical = false
         opts.Chunk (1,1) double = 2e4 % elements per vectorised block
         opts.MassOnly (1,1) logical = false
     end
@@ -41,12 +37,7 @@ function [K, M] = matrices(b, opts)
         end
         dof = reshape(3*permute(Te, [3 1 2]) - [2; 1; 0], nd, nc);
         K  = K  + sparse(repmat(dof, nd, 1), repelem(dof, nd, 1), Ke(:), b.nDof, b.nDof);
-        if opts.Lumped
-            Me = reshape(Me, nn*nn, nc);  d = Me(1:nn+1:end, :);
-            Ms = Ms + sparse(Te, Te, d.*sum(Me, 1)./sum(d, 1), b.nNode, b.nNode);
-        else
-            Ms = Ms + sparse(repmat(Te, nn, 1), repelem(Te, nn, 1), Me(:), b.nNode, b.nNode);
-        end
+        Ms = Ms + sparse(repmat(Te, nn, 1), repelem(Te, nn, 1), Me(:), b.nNode, b.nNode);
     end
     if any(bad)
         warning('fmbd:Body', '%s: %d element(s) with det(J) <= 0; results are unreliable.', ...

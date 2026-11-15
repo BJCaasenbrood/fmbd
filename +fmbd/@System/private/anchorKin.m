@@ -1,6 +1,7 @@
 function [ra, Ra, Jv, Jw] = anchorKin(s, k, q)
 % Position ra and rotation Ra of anchor k (0 = ground) with the
-% Jacobians of its velocity (world) and angular velocity (anchor frame).
+% Jacobians of its velocity (world) and angular velocity (anchor frame),
+% Eqs. (3.3) and (5.1).
     Jv = zeros(3, s.nv);  Jw = zeros(3, s.nv);
     if k == 0, ra = zeros(3, 1);  Ra = eye(3);  return, end
     A = s.anchors(k);
