@@ -1,14 +1,21 @@
-function K = stiffness(s, q, u, lam, nu, cols)
-% Tangent stiffness -d(F - G'*lam)/dq by central differences (columns cols).
+function K = stiffness(s, q, u, lambda, nu, cols)
+% Tangent stiffness -d(F - G'*lambda)/dq by central differences in the
+% increments of Eq. (1.2), for the columns cols (default: all). Eq. (9.1).
     if nargin < 5 || isempty(nu), nu = zeros(s.nv, 1); end
     if nargin < 6, cols = 1:s.nv; end
     n = s.nv;
     K = zeros(n);
-    e = 1e-5; % ~ eps^(1/3): truncation vs round-off
+    e = 1e-5; % ~ eps^(1/3): balances truncation and round-off
     for j = cols(:)'
-        d = zeros(n, 1);  d(j) = e;
-        qp = retract(s, q, d);  qm = retract(s, q, -d);
-        [~, Gp] = constraints(s, qp);  [~, Gm] = constraints(s, qm);
-        K(:, j) = -((forces(s, qp, nu, u, false) - Gp'*lam) - (forces(s, qm, nu, u, false) - Gm'*lam))/(2*e);
+        dq = zeros(n, 1);
+        dq(j) = e;
+        rp = residual(retract(s, q, dq));
+        rm = residual(retract(s, q, -dq));
+        K(:, j) = -(rp - rm)/(2*e);
+    end
+
+    function r = residual(q)
+        [~, G] = constraints(s, q);
+        r = forces(s, q, nu, u, false) - G'*lambda;
     end
 end

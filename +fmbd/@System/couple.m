@@ -22,7 +22,7 @@ function name = couple(s, body, sel, opts)
     assert(~isempty(nodes), 'fmbd:couple', 'No nodes selected.');
     
     x = opts.Point;  
-    if isempty(x), 
+    if isempty(x)
         x = mean(b.X(nodes, :), 1); 
     end
 

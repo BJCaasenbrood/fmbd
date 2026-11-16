@@ -9,9 +9,14 @@ function [f, V] = modes(s, x, n, opts)
         opts.Input double = []
     end
     lin = s.linearize(x, Input = opts.Input);
-    [P, lam] = eig((lin.K + lin.K')/2, lin.M, 'vector');
-    [lam, i] = sort(real(lam));  n = min(n, numel(lam));
-    lam(abs(lam) < 1e-10*max(abs(lam))) = 0;
+    K = (lin.K + lin.K')/2;
+
+    % undamped modes K*P = M*P*lam, lowest first
+    [P, lam] = eig(K, lin.M, 'vector');
+    [lam, order] = sort(real(lam));
+    lam(abs(lam) < 1e-10*max(abs(lam))) = 0; % rigid-body and mechanism modes
+    n = min(n, numel(lam));
+
     f = sign(lam(1:n)).*sqrt(abs(lam(1:n)))/(2*pi);
-    V = lin.T*real(P(:, i(1:n)));
+    V = lin.T*real(P(:, order(1:n))); % mode shapes in the system velocities
 end

@@ -11,47 +11,70 @@ function lin = linearize(s, x, opts)
         opts.Input double = []
     end
     build(s);
+    n = s.nv;
+    nIn = numel(s.inSignals);
+    nOut = numel(s.outSignals);
+
+    % operating point: state and inputs
     [q, nu] = startState(s, x);
     if any(nu)
         warning('fmbd:linearize', 'The state is moving; the model is linearised at its velocities.');
     end
-    n = s.nv;  u0 = opts.Input; % the inputs at the operating point
-    if isempty(u0) && ~isempty(x) && isfield(x, 'u') && ~isempty(x.u), u0 = x.u(:, end); end
+    u0 = opts.Input;
+    if isempty(u0) && ~isempty(x) && isfield(x, 'u') && ~isempty(x.u)
+        u0 = x.u(:, end);
+    end
     u0 = inputVector(s, u0);
+
+    % independent coordinates dq = T*z: null space of the constraints, Eq. (9.2)
     [~, G] = constraints(s, q);
-    T = null(G);  if isempty(G), T = eye(n); end % dq = T*z, Eq. (9.2)
-    [F, ~, ~, Mq] = forces(s, q, nu, u0);  nc = size(G, 1);
-    sol = lsqminnorm([Mq, G'; G, zeros(nc)], [F; -convective(s, q, nu)]); % constraint forces
-    lam = sol(n+1:end); % (dynamic, so also away from equilibrium)
-    if ~any(nu) && norm(Mq*sol(1:n)) > 1e-6*max(norm(F), 1)
+    nc = size(G, 1);
+    T = null(G);
+    if isempty(G), T = eye(n); end
+
+    % multipliers at the operating point, from Eq. (4.6). The dynamic solve
+    % also works away from equilibrium, where the accelerations are not zero.
+    [F, ~, ~, M] = forces(s, q, nu, u0);
+    sol = lsqminnorm([M, G'; G, zeros(nc)], [F; -convective(s, q, nu)]);
+    nuDot = sol(1:n);
+    lambda = sol(n+1:end);
+    if ~any(nu) && norm(M*nuDot) > 1e-6*max(norm(F), 1)
         warning('fmbd:linearize', ['The state is not an equilibrium (e.g. a preloaded spring ' ...
             'without a holding input); use x = s.equilibrium(Input = u0).']);
     end
-    Kq = stiffness(s, q, u0, lam, nu); % Eq. (9.1)
-    Cq = zeros(n);  e = 1; % exact: the forces are quadratic in nu
+
+    % stiffness, damping and input matrices, Eq. (9.1). The differences for
+    % C and B use a step of 1 and are exact: the forces are quadratic in
+    % nu and linear in u.
+    K = stiffness(s, q, u0, lambda, nu);
+    C = zeros(n);
+    I = eye(n);
     for j = 1:n
-        d = zeros(n, 1);  d(j) = e;
-        Cq(:, j) = -(forces(s, q, nu + d, u0) - forces(s, q, nu - d, u0))/(2*e);
+        C(:, j) = -(forces(s, q, nu + I(:,j), u0) - forces(s, q, nu - I(:,j), u0))/2;
     end
-    Bq = zeros(n, numel(s.inSignals));
-    for i = 1:numel(s.inSignals) % forces are linear in the inputs
-        du = zeros(numel(s.inSignals), 1);  du(i) = 1;
-        Bq(:, i) = forces(s, q, nu, u0 + du) - forces(s, q, nu, u0);
+    B = zeros(n, nIn);
+    I = eye(nIn);
+    for i = 1:nIn
+        B(:, i) = forces(s, q, nu, u0 + I(:,i)) - forces(s, q, nu, u0);
     end
-    no = numel(s.outSignals);
-    Yq = zeros(no, n);
-    Yv = zeros(no, n);
-    Ya = zeros(no, n);
-    for i = 1:no
-        sg = s.outSignals(i);  [~, Jc] = coord(s, sg.kind, sg.idx, q);
-        switch sg.type
-            case 'displacement', Yq(i,:) = Jc(sg.dir, :);
-            case 'velocity',     Yv(i,:) = Jc(sg.dir, :);
-            otherwise,           Ya(i,:) = Jc(sg.dir, :);
+
+    % outputs y = Yq*dq + Yv*dq' + Ya*dq''
+    Yq = zeros(nOut, n);
+    Yv = zeros(nOut, n);
+    Ya = zeros(nOut, n);
+    for i = 1:nOut
+        sig = s.outSignals(i);
+        [~, Jc] = coord(s, sig.kind, sig.idx, q);
+        switch sig.type
+            case 'displacement', Yq(i,:) = Jc(sig.dir, :);
+            case 'velocity',     Yv(i,:) = Jc(sig.dir, :);
+            otherwise,           Ya(i,:) = Jc(sig.dir, :);
         end
     end
-    lin = struct('M', T'*Mq*T, 'C', T'*Cq*T, 'K', T'*Kq*T, 'B', T'*Bq, 'Cz', Yq*T, ...
-                 'Cv', Yv*T, 'Ca', Ya*T, 'T', T, 'InputName', {s.InputName}, ...
-                 'OutputName', {s.OutputName});
+
+    % project onto the independent coordinates, Eq. (9.2)
+    lin = struct('M', T'*M*T, 'C', T'*C*T, 'K', T'*K*T, 'B', T'*B, ...
+                 'Cz', Yq*T, 'Cv', Yv*T, 'Ca', Ya*T, 'T', T, ...
+                 'InputName', {s.InputName}, 'OutputName', {s.OutputName});
     lin.M = (lin.M + lin.M')/2;
 end

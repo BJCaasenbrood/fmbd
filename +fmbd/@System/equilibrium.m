@@ -85,3 +85,14 @@ function [x, info] = equilibrium(s, opts)
     % return the state at equilibrium
     x = state(s, q, nu, u);
 end
+
+function K = frameStiffness(s, q, u, lambda)
+% Tangent stiffness for equilibrium: differences over the frame coordinates
+% only, plus the modal stiffness Kc of the elastic units.
+    frames = arrayfun(@(B) B.cols(1:6), s.units, 'UniformOutput', false);
+    K = stiffness(s, q, u, lambda, [], [frames{:}]);
+    for B = s.units(logical([s.units.elastic]))
+        modal = B.cols(7:end);
+        K(modal, modal) = K(modal, modal) + B.Kc;
+    end
+end

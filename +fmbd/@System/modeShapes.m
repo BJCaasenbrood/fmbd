@@ -5,6 +5,10 @@ function [Phi, X0] = modeShapes(s, body)
     [kind, i] = lookup(s, body, false);
     B = s.units(s.bodyUnit(i));
     assert(strcmp(kind, 'body') && B.elastic, 'fmbd:modeShapes', 'Not an elastic body.');
-    rows = s.bodyOffset(i) + (1:s.Bodies{i}.nNode);  d = 3*rows - [2; 1; 0];
-    Phi = B.Phi(d(:), :);  X0 = B.Xl(rows, :);
+
+    % rows of the body in its unit
+    nodes = s.bodyOffset(i) + (1:s.Bodies{i}.nNode);
+    dofs = 3*nodes - [2; 1; 0];
+    Phi = B.Phi(dofs(:), :);
+    X0 = B.Xl(nodes, :);
 end

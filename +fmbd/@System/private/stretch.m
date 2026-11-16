@@ -1,8 +1,11 @@
-function [d, Jd] = stretch(s, T, q)
-% Transmission stretch delta = sum c_i s_i.
-    d = 0;  Jd = zeros(1, s.nv);
+function [delta, Jd] = stretch(s, T, q)
+% Transmission stretch delta = sum c_i s_i and its Jacobian, Section 5.3.
+    delta = 0;
+    Jd = zeros(1, s.nv);
     for i = 1:numel(T.terms)
-        [v, Jv] = coord(s, T.terms(i).kind, T.terms(i).idx, q);
-        d = d + T.coef(i)*v(T.terms(i).dir);  Jd = Jd + T.coef(i)*Jv(T.terms(i).dir, :);
+        term = T.terms(i);
+        [v, Jv] = coord(s, term.kind, term.idx, q);
+        delta = delta + T.coef(i)*v(term.dir);
+        Jd = Jd + T.coef(i)*Jv(term.dir, :);
     end
 end

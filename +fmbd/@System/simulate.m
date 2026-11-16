@@ -10,8 +10,7 @@ function [t, y, x] = simulate(s, tspan, opts)
 %     Initial  start state, e.g. from equilibrium
 %     Rho      numerical damping, 0..1 (default 0.8; 1 = none)
 %     Tol      Newton tolerance (default 1e-8)
-
-   arguments
+    arguments
         s
         tspan (1,2) double
         opts.Step (1,1) double {mustBePositive} = 1e-3
@@ -21,11 +20,15 @@ function [t, y, x] = simulate(s, tspan, opts)
         opts.Initial struct = struct([])
     end
     build(s);
-    nt = max(1, round(diff(tspan)/opts.Step));
-    h = diff(tspan)/nt;
-    t = tspan(1) + h*(0:nt)';
-    nb = numel(s.units);
     n = s.nv;
+    nUnits = numel(s.units);
+    nIn = numel(s.inSignals);
+    maxIter = 30;
+
+    % time grid
+    nSteps = max(1, round(diff(tspan)/opts.Step));
+    h = diff(tspan)/nSteps;
+    t = tspan(1) + h*(0:nSteps)';
 
     % generalised-alpha parameters, Eq. (7.1)
     rho = opts.Rho;
@@ -35,42 +38,35 @@ function [t, y, x] = simulate(s, tspan, opts)
     bet = 0.25*(gam + 0.5)^2;
     ca = (1 - alphaF)/(1 - alphaM);
 
-    % consistent initial accelerations and multipliers from Eq. (4.6)
+    % start: accelerations and multipliers that satisfy Eq. (4.6)
     [q, nu] = startState(s, opts.Initial);
-    u = zeros(numel(s.inSignals), 1);
-    [F, ~, ~, M] = forces(s, q, nu, u);
-    [~, G] = constraints(s, q);
-    nc = size(G, 1);
-    sol = [M, G'; G, zeros(nc)]\[F; -convective(s, q, nu)];
-    nuDot = sol(1:n);
-    y0 = outputs(s, q, nu, nuDot);
+    u = zeros(nIn, 1);
+    [nuDot, lambda] = startAccelerations();
+    yk = outputs(s, q, nu, nuDot);
     if ~isempty(opts.Input) % the first input changes the accelerations
-        u = opts.Input(t(1), y0);
-        F = forces(s, q, nu, u);
-        sol = [M, G'; G, zeros(nc)]\[F; -convective(s, q, nu)];
-        nuDot = sol(1:n);
-        y0 = outputs(s, q, nu, nuDot);
+        u = opts.Input(t(1), yk);
+        [nuDot, lambda] = startAccelerations();
+        yk = outputs(s, q, nu, nuDot);
     end
-    lambda = sol(n+1:end);
+    nc = numel(lambda);
     a = nuDot; % auxiliary accelerations, Eq. (7.2)
 
-    x = struct('r', zeros(3, nb, nt+1), 'R', zeros(3, 3, nb, nt+1), ...
-               'e', zeros(numel(q.e), nt+1), 'nu', zeros(n, nt+1), 'u', zeros(numel(s.inSignals), nt+1));
-    Y = zeros(numel(s.outSignals), nt+1);
-    x.r(:,:,1) = q.r;
-    x.R(:,:,:,1) = q.R;
-    x.e(:,1) = q.e;
-    x.nu(:,1) = nu;
-    x.u(:,1) = u;
-    Y(:,1) = cell2mat(struct2cell(y0));
-    yk = y0;
-    for k = 1:nt
-        if ~isempty(opts.Input), u = opts.Input(t(k), yk); end
+    % storage
+    x = struct('r', zeros(3, nUnits, nSteps+1), 'R', zeros(3, 3, nUnits, nSteps+1), ...
+               'e', zeros(numel(q.e), nSteps+1), 'nu', zeros(n, nSteps+1), ...
+               'u', zeros(nIn, nSteps+1));
+    Y = zeros(numel(s.outSignals), nSteps+1);
+    record(1);
+
+    for k = 1:nSteps
+        if ~isempty(opts.Input)
+            u = opts.Input(t(k), yk);
+        end
 
         % Newton iterations on the new accelerations and multipliers
         nuDotNew = nuDot;
-        prev = inf;
-        for it = 1:30
+        previous = inf;
+        for it = 1:maxIter
             [qNew, nuNew] = step(nuDotNew);
             if it == 1 % tangents once per step (modified Newton)
                 [F, Kt, Ct, M] = forces(s, qNew, nuNew, u);
@@ -78,40 +74,53 @@ function [t, y, x] = simulate(s, tspan, opts)
                 [F, ~, ~, M] = forces(s, qNew, nuNew, u, false);
             end
             [g, G] = constraints(s, qNew);
-            res = [M*nuDotNew - F + G'*lambda; g/(h^2*bet*ca)]; % Eq. (4.6)
+
+            residual = [M*nuDotNew - F + G'*lambda; g/(h^2*bet*ca)]; % Eq. (4.6)
             S = [M + h*gam*ca*Ct + h^2*bet*ca*Kt, G'; G, zeros(nc)]; % Eq. (7.4)
-            dx = -S\res;
+            dx = -S\residual;
             nuDotNew = nuDotNew + dx(1:n);
             lambda = lambda + dx(n+1:end);
-            e = norm(dx(1:n))/(1 + norm(nuDotNew));
-            if e <= opts.Tol || (e >= prev && e < 1e3*opts.Tol), break, end % converged, or at round-off
-            prev = e;
+
+            change = norm(dx(1:n))/(1 + norm(nuDotNew));
+            converged = change <= opts.Tol;
+            atRoundOff = change >= previous && change < 1e3*opts.Tol;
+            if converged || atRoundOff, break, end
+            previous = change;
         end
-        if it == 30 && e > 1e3*opts.Tol
+        if it == maxIter && change > 1e3*opts.Tol
             warning('fmbd:simulate', 'Newton did not converge at t = %g s; try a smaller Step.', t(k+1));
         end
 
-        % update, and project the velocities onto the constraints, Eq. (7.5)
-        [q, nu, aNew] = step(nuDotNew);
+        % accept the step
+        [q, nu, a] = step(nuDotNew);
+        nuDot = nuDotNew;
+
+        % project the velocities onto the constraints, Eq. (7.5)
         if nc > 0
             [~, G] = constraints(s, q);
             M = massMatrix(s, q);
-            p = [M, G'; G, zeros(nc)]\[zeros(n, 1); -G*nu];
-            nu = nu + p(1:n);
+            sol = [M, G'; G, zeros(nc)]\[zeros(n, 1); -G*nu];
+            nu = nu + sol(1:n);
         end
-        a = aNew;
-        nuDot = nuDotNew;
+
         yk = outputs(s, q, nu, nuDot);
-        x.r(:,:,k+1) = q.r;
-        x.R(:,:,:,k+1) = q.R;
-        x.e(:,k+1) = q.e;
-        x.nu(:,k+1) = nu;
-        x.u(:,k+1) = u;
-        Y(:,k+1) = cell2mat(struct2cell(yk));
+        record(k + 1);
     end
+
     y = struct();
     for i = 1:numel(s.outSignals)
         y.(matlab.lang.makeValidName(s.Outputs(i).Name)) = Y(i,:)';
+    end
+
+    function [nuDot0, lambda0] = startAccelerations()
+    % Accelerations and multipliers at the start, from Eq. (4.6) and the
+    % constraints differentiated twice, G*nuDot + dG/dt*nu = 0.
+        [F0, ~, ~, M0] = forces(s, q, nu, u);
+        [~, G0] = constraints(s, q);
+        m = size(G0, 1);
+        sol0 = [M0, G0'; G0, zeros(m)]\[F0; -convective(s, q, nu)];
+        nuDot0 = sol0(1:n);
+        lambda0 = sol0(n+1:end);
     end
 
     function [qNew, nuNew, aNew] = step(nuDotNew)
@@ -121,4 +130,42 @@ function [t, y, x] = simulate(s, tspan, opts)
         qNew = retract(s, q, h*(nu + h*(0.5 - bet)*a + h*bet*aNew));
         nuNew = nu + h*(1 - gam)*a + h*gam*aNew;
     end
+
+    function record(k)
+    % Store the state and the outputs of step k.
+        x.r(:,:,k) = q.r;
+        x.R(:,:,:,k) = q.R;
+        x.e(:,k) = q.e;
+        x.nu(:,k) = nu;
+        x.u(:,k) = u;
+        Y(:,k) = cell2mat(struct2cell(yk));
+    end
+end
+
+function y = outputs(s, q, nu, nuDot)
+% Output signals as a struct, with fields in the order of OutputName.
+% nuDot is needed for acceleration outputs.
+    nOut = numel(s.outSignals);
+    values = zeros(nOut, 1);
+    for i = 1:nOut
+        sig = s.outSignals(i);
+        [coords, Jc] = coord(s, sig.kind, sig.idx, q);
+        J = Jc(sig.dir, :);
+        switch sig.type
+            case 'displacement'
+                values(i) = coords(sig.dir);
+            case 'velocity'
+                values(i) = J*nu;
+            otherwise % acceleration: J*nuDot + dJ/dt*nu
+                values(i) = J*nuDot;
+                if any(nu) % dJ/dt by central differences along nu
+                    e = 1e-6/norm(nu);
+                    [~, Jp] = coord(s, sig.kind, sig.idx, retract(s, q, e*nu));
+                    [~, Jm] = coord(s, sig.kind, sig.idx, retract(s, q, -e*nu));
+                    values(i) = values(i) + (Jp(sig.dir, :) - Jm(sig.dir, :))*nu/(2*e);
+                end
+        end
+    end
+    y = cell2struct(num2cell(values), matlab.lang.makeValidName(s.OutputName(:)), 1);
+    if nOut == 0, y = struct(); end
 end
