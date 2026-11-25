@@ -24,7 +24,8 @@ function [F, Kt, Ct, M] = forces(s, q, nu, u, tangents)
             end
         else
             omega = nu(c(4:6));
-            M(c, c) = blkdiag(B.m*eye(3), B.J);
+            M(c(1:3), c(1:3)) = B.m*eye(3); % M is zero elsewhere: no blkdiag
+            M(c(4:6), c(4:6)) = B.J;
             F(c(1:3)) = B.m*g;
             F(c(4:6)) = -cross(omega, B.J*omega); % Eq. (2.2)
             Ct(c(4:6), c(4:6)) = hat(omega)*B.J - hat(B.J*omega);

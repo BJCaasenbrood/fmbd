@@ -38,15 +38,22 @@ function [t, y, x] = simulate(s, tspan, opts)
     bet = 0.25*(gam + 0.5)^2;
     ca = (1 - alphaF)/(1 - alphaM);
 
+    % outputs: struct field names, and per signal the first signal on the
+    % same joint, point or node set (its coordinates are computed once)
+    outNames = matlab.lang.makeValidName(s.OutputName(:));
+    keys = arrayfun(@(g) sprintf('%s %d', g.kind, g.idx), s.outSignals, 'UniformOutput', false);
+    [~, first, group] = unique(keys, 'stable');
+    outFirst = first(group);
+
     % start: accelerations and multipliers that satisfy Eq. (4.6)
     [q, nu] = startState(s, opts.Initial);
     u = zeros(nIn, 1);
     [nuDot, lambda] = startAccelerations();
-    yk = outputs(s, q, nu, nuDot);
+    [yk, yv] = outputs(s, q, nu, nuDot, outNames, outFirst);
     if ~isempty(opts.Input) % the first input changes the accelerations
         u = opts.Input(t(1), yk);
         [nuDot, lambda] = startAccelerations();
-        yk = outputs(s, q, nu, nuDot);
+        [yk, yv] = outputs(s, q, nu, nuDot, outNames, outFirst);
     end
     nc = numel(lambda);
     a = nuDot; % auxiliary accelerations, Eq. (7.2)
@@ -103,7 +110,7 @@ function [t, y, x] = simulate(s, tspan, opts)
             nu = nu + sol(1:n);
         end
 
-        yk = outputs(s, q, nu, nuDot);
+        [yk, yv] = outputs(s, q, nu, nuDot, outNames, outFirst);
         record(k + 1);
     end
 
@@ -138,22 +145,27 @@ function [t, y, x] = simulate(s, tspan, opts)
         x.e(:,k) = q.e;
         x.nu(:,k) = nu;
         x.u(:,k) = u;
-        Y(:,k) = cell2mat(struct2cell(yk));
+        Y(:,k) = yv;
     end
 end
 
-function y = outputs(s, q, nu, nuDot)
-% Output signals as a struct, with fields in the order of OutputName.
-% nuDot is needed for acceleration outputs.
+function [y, values] = outputs(s, q, nu, nuDot, names, first)
+% Output signals as a struct with the fields names, and as a vector.
+% Signal i reuses the coordinates of signal first(i) (same joint, point or
+% node set). nuDot is needed for acceleration outputs.
     nOut = numel(s.outSignals);
     values = zeros(nOut, 1);
+    coords = cell(nOut, 1);
+    Jcs = cell(nOut, 1);
     for i = 1:nOut
         sig = s.outSignals(i);
-        [coords, Jc] = coord(s, sig.kind, sig.idx, q);
-        J = Jc(sig.dir, :);
+        if first(i) == i
+            [coords{i}, Jcs{i}] = coord(s, sig.kind, sig.idx, q);
+        end
+        J = Jcs{first(i)}(sig.dir, :);
         switch sig.type
             case 'displacement'
-                values(i) = coords(sig.dir);
+                values(i) = coords{first(i)}(sig.dir);
             case 'velocity'
                 values(i) = J*nu;
             otherwise % acceleration: J*nuDot + dJ/dt*nu
@@ -166,6 +178,6 @@ function y = outputs(s, q, nu, nuDot)
                 end
         end
     end
-    y = cell2struct(num2cell(values), matlab.lang.makeValidName(s.OutputName(:)), 1);
+    y = cell2struct(num2cell(values), names, 1);
     if nOut == 0, y = struct(); end
 end

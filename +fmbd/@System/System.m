@@ -60,6 +60,7 @@ properties (Access = private)
     q0 % initial configuration: r (3 x nb), R (3 x 3 x nb), e
     nu0 % initial velocities
     keepRows % independent constraint rows
+    kinCache = [] % joint kinematics at the last configuration (jointKin)
 end
 
 methods

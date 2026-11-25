@@ -7,7 +7,8 @@ function M = massMatrix(s, q)
         if B.elastic
             M(c, c) = elasticTerms(B, q.R(:,:,i), q.e(B.ecols));
         else
-            M(c, c) = blkdiag(B.m*eye(3), B.J);
+            M(c(1:3), c(1:3)) = B.m*eye(3); % M is zero elsewhere: no blkdiag
+            M(c(4:6), c(4:6)) = B.J;
         end
     end
 end

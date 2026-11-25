@@ -1,6 +1,23 @@
 function [coords, Jc, g, G] = jointKin(s, j, q)
 % Joint coordinates [d; phi] (Eq. 5.2) with their Jacobian (Eq. 5.3), and
 % the rotation constraints (Table 5.1) with their Jacobian (Eq. 5.4).
+% Results are kept for the last configuration q: constraints, the inputs
+% in forces and the outputs ask for the same joints at the same q. build
+% empties the store, so a rebuilt model is never served stale results.
+    store = s.kinCache;
+    if isempty(store) || ~isequal(store.q, q)
+        store = struct('q', q, 'out', {cell(numel(s.jointFrames), 1)});
+    end
+    if isempty(store.out{j})
+        out = cell(1, 4);
+        [out{:}] = evaluate(s, j, q);
+        store.out{j} = out;
+        s.kinCache = store;
+    end
+    [coords, Jc, g, G] = store.out{j}{:};
+end
+
+function [coords, Jc, g, G] = evaluate(s, j, q)
     J = s.jointFrames(j);
     [rA, RA, JvA, JwA] = anchorKin(s, J.A, q);
     [rB, RB, JvB, JwB] = anchorKin(s, J.B, q);

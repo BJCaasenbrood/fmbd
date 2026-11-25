@@ -2,6 +2,7 @@ function build(s)
 % Compile the model (bodies, ties, joints, signals) into the data that the
 % solvers use. Runs on first use, and again after the model has changed.
     if s.built, return, end
+    s.kinCache = []; % joint kinematics of the old model (see jointKin)
 
     q = buildUnits(s);
     buildReferencePoints(s);
