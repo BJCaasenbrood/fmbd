@@ -34,7 +34,7 @@ function lin = linearize(s, x, opts)
 
     % multipliers at the operating point, from Eq. (4.6). The dynamic solve
     % also works away from equilibrium, where the accelerations are not zero.
-    [F, ~, ~, M] = forces(s, q, nu, u0);
+    [F, ~, C, M] = forces(s, q, nu, u0); % C = -dF/dnu, exact
     sol = lsqminnorm([M, G'; G, zeros(nc)], [F; -convective(s, q, nu)]);
     nuDot = sol(1:n);
     lambda = sol(n+1:end);
@@ -43,19 +43,13 @@ function lin = linearize(s, x, opts)
             'without a holding input); use x = s.equilibrium(Input = u0).']);
     end
 
-    % stiffness, damping and input matrices, Eq. (9.1). The differences for
-    % C and B use a step of 1 and are exact: the forces are quadratic in
-    % nu and linear in u.
+    % stiffness and input matrices, Eq. (9.1). The difference for B uses a
+    % step of 1 and is exact: the forces are linear in u.
     K = stiffness(s, q, u0, lambda, nu);
-    C = zeros(n);
-    I = eye(n);
-    for j = 1:n
-        C(:, j) = -(forces(s, q, nu + I(:,j), u0) - forces(s, q, nu - I(:,j), u0))/2;
-    end
     B = zeros(n, nIn);
     I = eye(nIn);
     for i = 1:nIn
-        B(:, i) = forces(s, q, nu, u0 + I(:,i)) - forces(s, q, nu, u0);
+        B(:, i) = forces(s, q, nu, u0 + I(:,i), false) - F;
     end
 
     % outputs y = Yq*dq + Yv*dq' + Ya*dq''

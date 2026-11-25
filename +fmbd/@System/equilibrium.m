@@ -88,7 +88,9 @@ end
 
 function K = frameStiffness(s, q, u, lambda)
 % Tangent stiffness for equilibrium: differences over the frame coordinates
-% only, plus the modal stiffness Kc of the elastic units.
+% only, plus the modal stiffness Kc of the elastic units. Keep central
+% differences: forward ones blur the exact zero stiffness of a free
+% mechanism, which then moves instead of keeping its position.
     frames = arrayfun(@(B) B.cols(1:6), s.units, 'UniformOutput', false);
     K = stiffness(s, q, u, lambda, [], [frames{:}]);
     for B = s.units(logical([s.units.elastic]))

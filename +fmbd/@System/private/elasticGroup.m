@@ -42,7 +42,22 @@ function B = elasticGroup(s, members)
 
     name = strjoin(cellfun(@(b) b.Name, bodies, 'UniformOutput', false), ' + ');
     nModes = sum(cellfun(@(b) b.Modes, bodies));
-    B = reduceGroup(bodies, couplings, ties, unique(supported), loads, nModes, name);
+    % reuse a recent reduction with the same inputs: e.g. one System per
+    % pose that differ only in a joint Position. The key holds copies of
+    % the body data, so a Body edited in place is reduced again.
+    % shortcut: keeps the last 4 reductions for the MATLAB session (clear
+    % with "clear functions"); make it an option if memory becomes an issue
+    persistent cache
+    if isempty(cache), cache = struct('key', {}, 'unit', {}); end
+    bodyData = cellfun(@(b) {b.X, b.T, b.Mat, b.Rigid, b.Damping}, bodies, 'UniformOutput', false);
+    key = {bodyData, couplings, ties, unique(supported), loads, nModes, name};
+    hit = find(arrayfun(@(c) isequal(c.key, key), cache), 1);
+    if isempty(hit)
+        B = reduceGroup(bodies, couplings, ties, unique(supported), loads, nModes, name);
+        cache = [struct('key', {key}, 'unit', B), cache(1:min(end, 3))];
+    else
+        B = cache(hit).unit;
+    end
     B.cpl = cpl;
 end
 

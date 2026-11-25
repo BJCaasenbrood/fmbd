@@ -16,10 +16,11 @@ function [F, Kt, Ct, M] = forces(s, q, nu, u, tangents)
         R = q.R(:,:,i);
         if B.elastic
             eta = q.e(B.ecols);
-            [M(c, c), F(c)] = elasticTerms(B, R, eta, nu(c), g);
             if tangents
-                Ct(c, c) = velocityTangent(B, R, eta, nu(c), g);
+                [M(c, c), F(c), Ct(c, c)] = elasticTerms(B, R, eta, nu(c), g);
                 Kt(c(7:end), c(7:end)) = B.Kc;
+            else
+                [M(c, c), F(c)] = elasticTerms(B, R, eta, nu(c), g);
             end
         else
             omega = nu(c(4:6));
@@ -67,18 +68,5 @@ function [F, Kt, Ct, M] = forces(s, q, nu, u, tangents)
             [~, Ju] = coord(s, sig.kind, sig.idx, q);
             F = F + Ju(sig.dir, :)'*u(i);
         end
-    end
-end
-
-function Cb = velocityTangent(B, R, eta, nu, g)
-% -dF/dnu of an elastic unit by central differences with step 1, which is
-% exact because the forces are quadratic in nu.
-    n = numel(nu);
-    I = eye(n);
-    Cb = zeros(n);
-    for k = 1:n
-        [~, Fp] = elasticTerms(B, R, eta, nu + I(:,k), g);
-        [~, Fm] = elasticTerms(B, R, eta, nu - I(:,k), g);
-        Cb(:, k) = (Fm - Fp)/2;
     end
 end
