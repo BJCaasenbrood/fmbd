@@ -86,6 +86,7 @@ methods
     input(s, name, id, sel, dirs)
     output(s, name, id, sel, dirs, opts)
     update(s)
+    pose(s, varargin)
     [t, y, x] = simulate(s, tspan, opts)
     E = energy(s, x)
     [x, info] = equilibrium(s, opts)
